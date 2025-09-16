@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String          @id @default(cuid())
+  name        String
+  email       String          @unique
+  password    String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  image       String?
+  comments    Comment[]
+  memberships ProjectMember[]
+  tasks       Task[]          @relation("AssignedTasks")
+  reportedTasks Task[]        @relation("ReportedTasks")
+  watching    TaskWatcher[]
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  members     ProjectMember[]
+  tasks       Task[]
+  labels      Label[]
+  sprints     Sprint[]
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  role      ProjectRole
+  joinedAt  DateTime    @default(now())
+  userId    String
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@unique([userId, projectId])
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  status       TaskStatus   @default(TODO)
+  priority     Priority     @default(MEDIUM)
+  dueDate      DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  projectId    String
+  assignedToId String?
+  reporterId   String?
+  image        String?
+  project      Project      @relation(fields: [projectId], references: [id])
+  assignedTo   User?        @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  reporter     User?        @relation("ReportedTasks", fields: [reporterId], references: [id])
+  attachments  Attachment[]
+  comments     Comment[]
+  labels       TaskLabel[]
+  watchers     TaskWatcher[]
+  sprintId     String?
+  sprint       Sprint?      @relation(fields: [sprintId], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  taskId    String
+  userId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  url       String
+  fileName  String
+  createdAt DateTime @default(now())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+}
+
+model Label {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id])
+  tasks     TaskLabel[]
+}
+
+model TaskLabel {
+  id      String @id @default(cuid())
+  taskId  String
+  labelId String
+  task    Task   @relation(fields: [taskId], references: [id])
+  label   Label  @relation(fields: [labelId], references: [id])
+
+  @@unique([taskId, labelId])
+}
+
+model TaskWatcher {
+  id     String @id @default(cuid())
+  taskId String
+  userId String
+  task   Task   @relation(fields: [taskId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+}
+
+model Sprint {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  tasks       Task[]
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  TESTING
+  COMPLETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
